@@ -1,3 +1,4 @@
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
@@ -5,18 +6,20 @@ import java.util.Set;
 /**
  * Filename:   Graph.java
  * Project:    p4
- * Authors:    
+ * Authors:    Brandon Erickson
  * 
  * Directed and unweighted graph implementation
  */
 
 public class Graph implements GraphADT {
+
+	LinkedList[] graph;
 	
 	/*
 	 * Default no-argument constructor
 	 */ 
 	public Graph() {
-		
+		graph = new LinkedList[10];
 	}
 
 	/**
@@ -31,7 +34,21 @@ public class Graph implements GraphADT {
      * 2. vertex is not already in the graph 
      */
 	public void addVertex(String vertex) {
-		
+		if (vertex == null){}
+		else if (contains(vertex)){}
+		else {
+			// Searches for empty LinkedList
+			for(LinkedList list : graph) {
+				if (list.size() == 0)
+					list.add(vertex);
+			}
+			// Resizes array if no empty LinkedLists
+			LinkedList[] tempGraph = graph; // Stores current vertices in graph
+			graph = new LinkedList[tempGraph.length * 2]; // Resizes graph
+			// Reinserts verticies into graph
+			for(int i = 0; i < tempGraph.length; i++)
+				graph[i] = tempGraph[i];
+		}
 	}
 
 	/**
@@ -47,7 +64,17 @@ public class Graph implements GraphADT {
      * 2. vertex is not already in the graph 
      */
 	public void removeVertex(String vertex) {
-
+		if (vertex == null){}
+		else {
+			// Searches for vertex's LinkedList
+			for(LinkedList vert : graph) {
+				// If vertex is found, clears LinkedList
+				if (vert.get(0).equals(vertex)) {
+					vert.clear();
+					//TODO REMOVE EDGES
+				}
+			}
+		}
 	}
 
 	/**
@@ -81,7 +108,15 @@ public class Graph implements GraphADT {
      */
 	public void removeEdge(String vertex1, String vertex2) {
 
-	}	
+	}
+
+	private boolean contains(String vertex) {
+		for(LinkedList vert : graph) {
+			if (vert.contains(vertex))
+				return true;
+		}
+		return false;
+	}
 
 	/**
      * Returns a Set that contains all the vertices

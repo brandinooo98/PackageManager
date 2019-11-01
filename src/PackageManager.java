@@ -8,7 +8,7 @@ import org.json.simple.parser.ParseException;
 /**
  * Filename:   PackageManager.java
  * Project:    p4
- * Authors:    
+ * Authors:    Brandon Erickson
  * 
  * PackageManager is used to process json package dependency files
  * and provide function that make that information available to other users.
