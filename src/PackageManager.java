@@ -41,7 +41,7 @@ public class PackageManager {
      * Package Manager default no-argument constructor.
      */
     public PackageManager() {
-        
+        graph = new Graph(); // Initializes graph
     }
     
     /**
