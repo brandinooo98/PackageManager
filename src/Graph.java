@@ -39,20 +39,34 @@ public class Graph implements GraphADT {
         } else if (vertexSearch(vertex) != -1) {
         } else {
             // Searches for empty LinkedList
-            for (ArrayList list : graph) {
-                if (list.size() == 0)
+            for (ArrayList<String> list : graph) {
+                if (list.size() == 0) {
                     list.add(vertex);
+                    break;
+                }
             }
-            // Resizes array if no empty LinkedLists
-            ArrayList[] tempGraph = graph; // Stores current vertices in graph
-            graph = new ArrayList[tempGraph.length * 2]; // Resizes graph
-            // Reinserts vertices into graph
-            for (int i = 0; i < tempGraph.length; i++)
-                graph[i] = tempGraph[i];
-            // Adds ArrayLists to the new indices
-            for (int i = tempGraph.length - 1; i < graph.length; i++){
-                graph[i] = new ArrayList();
+            int counter = 1;
+            for (ArrayList<String> list : graph){
+                if (list.size() == 0)
+                    break;
+                else if (counter != graph.length && list.size() != 0) {
+                    counter++;
+                    continue;
+                }
+                else if(counter == graph.length){
+                    // Resizes array if no empty LinkedLists
+                    ArrayList[] tempGraph = graph; // Stores current vertices in graph
+                    graph = new ArrayList[tempGraph.length * 2]; // Resizes graph
+                    // Reinserts vertices into graph
+                    for (int i = 0; i < tempGraph.length; i++)
+                        graph[i] = tempGraph[i];
+                    // Adds ArrayLists to the new indices
+                    for (int i = tempGraph.length; i < graph.length; i++){
+                        graph[i] = new ArrayList();
+                    }
+                }
             }
+
         }
     }
 
@@ -100,13 +114,12 @@ public class Graph implements GraphADT {
      * 3. the edge is not in the graph
      */
     public void addEdge(String vertex1, String vertex2) {
-        // Checks if given vertex is null
-        if (vertex1 == null || vertex2 == null) {
+        // Checks if given vertex is null or they are the same
+        if (vertex1 == null || vertex2 == null || vertex1.equals(vertex2)) {
         } else {
             int vert1Index = vertexSearch(vertex1); // Stores vertex1 index
-            int vert2Index = vertexSearch(vertex2); // Stores vertex2 index
-            // If vertices were found
-            if (vert1Index != -1 && vert2Index != -1) {
+            // If vertices exist, edge is created
+            if (vert1Index != -1 && vertexSearch(vertex2) != -1) {
                 int index = edgeSearch(vertex2, graph[vert1Index]); // Stores index of specified edge
                 // If edge was not found, creates edge
                 if (index == -1)
@@ -129,10 +142,10 @@ public class Graph implements GraphADT {
      */
     public void removeEdge(String vertex1, String vertex2) {
         // Checks if given vertex is null
-        if (vertex1 == null || vertex2 == null) {
+        if (vertex1 == null || vertex2 == null || vertex1.equals(vertex2)) {
         } else {
             int vertIndex = vertexSearch(vertex1);
-            if (vertIndex != -1) {
+            if (vertIndex != -1 && vertexSearch(vertex2) != -1) {
                 int index = edgeSearch(vertex2, graph[vertIndex]); // Stores index of specified edge
                 // If edge was not found, removes edge
                 if (index != -1)
@@ -198,6 +211,8 @@ public class Graph implements GraphADT {
      * Get all the neighbor (adjacent) vertices of a vertex
      */
     public List<String> getAdjacentVerticesOf(String vertex) {
+        if (vertex == null || vertexSearch(vertex) == -1)
+            return null;
         List<String> adjVertices = new ArrayList<>(); // Stores all adjacent vertices
 		// Iterates through graph searching for non null lists
         for (ArrayList<String> edgeList : graph) {
@@ -206,12 +221,14 @@ public class Graph implements GraphADT {
         	String first = edgeList.get(0); // Stores vertex
 			// If list of edges for selected vertex is found, adds all edges to list
             if (first != null && first.equals(vertex)) {
-                for (String edge : edgeList)
-                    adjVertices.add(edge);
+                for (int i = 1; i < edgeList.size(); i++) {
+                    if(!adjVertices.contains(edgeList.get(i)))
+                        adjVertices.add(edgeList.get(i));
+                }
             } else if (first != null && !adjVertices.contains(first)){
             	// Searches through list looking to see if edge to given vertex exists
                 for (String edge : edgeList) {
-                    if (edge.equals(vertex))
+                    if (edge.equals(vertex) && !adjVertices.contains(edge))
                         adjVertices.add(first);
                 }
             }
@@ -226,10 +243,12 @@ public class Graph implements GraphADT {
         int count = 0;
         // Iterates through graph taking every vertex list
         for (ArrayList<String> vertex : graph) {
-            count--; // Subtracts vertex from count
-            // Iterates through vertex graph counting edges in vertex
-            for (String vert : vertex)
-                count++;
+            if (vertex.size() != 0) {
+                count--; // Subtracts vertex from count
+                // Iterates through vertex graph counting edges in vertex
+                for (String vert : vertex)
+                    count++;
+            }
         }
         return count;
     }
