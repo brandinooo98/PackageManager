@@ -1,9 +1,13 @@
 import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
 /**
@@ -37,6 +41,7 @@ import org.json.simple.parser.ParseException;
 public class PackageManager {
     
     private Graph graph;
+    private ArrayList<String> dependencies;
     
     /*
      * Package Manager default no-argument constructor.
@@ -55,7 +60,21 @@ public class PackageManager {
      * @throws ParseException if the given json cannot be parsed 
      */
     public void constructGraph(String jsonFilepath) throws FileNotFoundException, IOException, ParseException {
-        JSONObject file = new JSONObject(jsonFilepath);
+        Object obj = new JSONParser().parse(new FileReader(jsonFilepath)); // Used to parse file
+        JSONObject parser = (JSONObject) obj;
+        JSONArray packages = (JSONArray) parser.get("packages"); // Stores packages to be inserted into graph
+        // Adds the names of the packages(vertices)
+        for(int i = 0; i < packages.size(); i++){
+            JSONObject jsonPkg = (JSONObject) packages.get(i);
+            graph.addVertex((String) jsonPkg.get("name"));
+        }
+        // Adds the dependencies(edges)
+        for(int i = 0; i < packages.size(); i++){
+            JSONObject jsonPkg = (JSONObject) packages.get(i);
+            JSONArray dependencies = (JSONArray) jsonPkg.get("dependencies");
+            for (int j = 0; j < dependencies.size(); j++)
+                graph.addEdge((String) jsonPkg.get("name"), (String) dependencies.get(i));
+        }
     }
     
     /**
@@ -64,7 +83,7 @@ public class PackageManager {
      * @return Set<String> of all the packages
      */
     public Set<String> getAllPackages() {
-        return null;
+        return graph.getAllVertices();
     }
     
     /**
@@ -141,7 +160,64 @@ public class PackageManager {
      * @throws CycleException if you encounter a cycle in the graph
      */
     public String getPackageWithMaxDependencies() throws CycleException {
-        return "";
+        ArrayList<String> passed = new ArrayList<>();
+        int counter = 0;
+        int maxCount = 0;
+        String max = null;
+        for (ArrayList<String> pkg : graph.graph){
+            if (graph.getAdjacentVerticesOf(pkg.get(0)).contains(pkg.get(0))) {
+                throw new CycleException();
+            }
+            dependencies = new ArrayList<>();
+            for (String dependent : pkg){
+                if (counter == 0 && max == null){
+                    max = dependent;
+                    counter++;
+                    continue;
+                }
+                else if(counter == 0 && max != null){
+                    counter++;
+                    continue;
+                }
+                else{
+                    if(!passed.contains(dependent)){
+                        counter++;
+                        passed.add(dependent);
+                        getDependencies(dependent);
+                        for(String str : dependencies){
+                            if(!passed.contains(str)){
+                                passed.add(str);
+                                counter++;
+                            }
+                        }
+                    }
+                }
+            }
+            if (counter > maxCount){
+                maxCount = counter;
+                max = pkg.get(0);
+            }
+        }
+        return max;
+    }
+
+    private void getDependencies(String pkg){
+        ArrayList<String> dependents = null; // Stores dependents
+        // Iterates through graph looking for list of given pkg
+        for(ArrayList<String> pkgList : graph.graph){
+            if(pkgList.get(0).equals(pkg)){
+                dependents = pkgList;
+                break;
+            }
+        }
+        // Iterates through dependents list making recursive calls on dependents not on the dependencies list
+        for(int i = 1; i < dependents.size(); i++){
+            // If not in list
+            if(!dependencies.contains(dependents.get(i))) {
+                getDependencies(dependents.get(i)); // Recursive call
+                dependencies.add(dependents.get(i)); // Adds to list
+            }
+        }
     }
 
     public static void main (String [] args) {
