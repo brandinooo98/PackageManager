@@ -1,9 +1,7 @@
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -41,6 +39,7 @@ import org.json.simple.parser.ParseException;
 public class PackageManager {
     
     private Graph graph;
+    private Graph graphCopy;
     private ArrayList<String> dependencies;
     
     /*
@@ -48,6 +47,7 @@ public class PackageManager {
      */
     public PackageManager() {
         graph = new Graph(); // Initializes graph
+        graphCopy = new Graph();
     }
     
     /**
@@ -67,14 +67,22 @@ public class PackageManager {
         for(int i = 0; i < packages.size(); i++){
             JSONObject jsonPkg = (JSONObject) packages.get(i);
             graph.addVertex((String) jsonPkg.get("name"));
+            graphCopy.addVertex((String) jsonPkg.get("name"));
+            JSONArray dependencies = (JSONArray) jsonPkg.get("dependencies");
+            for (int j = 0; j < dependencies.size(); j++) {
+                graph.addVertex((String) dependencies.get(j));
+                graph.addEdge((String) jsonPkg.get("name"), (String) dependencies.get(j));
+                graphCopy.addVertex((String) dependencies.get(j));
+                graphCopy.addEdge((String) jsonPkg.get("name"), (String) dependencies.get(j));
+            }
         }
         // Adds the dependencies(edges)
-        for(int i = 0; i < packages.size(); i++){
-            JSONObject jsonPkg = (JSONObject) packages.get(i);
-            JSONArray dependencies = (JSONArray) jsonPkg.get("dependencies");
-            for (int j = 0; j < dependencies.size(); j++)
-                graph.addEdge((String) jsonPkg.get("name"), (String) dependencies.get(i));
-        }
+//        for(int i = 0; i < packages.size(); i++){
+//            JSONObject jsonPkg = (JSONObject) packages.get(i);
+//            JSONArray dependencies = (JSONArray) jsonPkg.get("dependencies");
+//            for (int j = 0; j < dependencies.size(); j++)
+//                graph.addEdge((String) jsonPkg.get("name"), (String) dependencies.get(j));
+//        }
     }
     
     /**
@@ -104,7 +112,17 @@ public class PackageManager {
      * dependency graph.
      */
     public List<String> getInstallationOrder(String pkg) throws CycleException, PackageNotFoundException {
-        return null;
+        if (!graph.getAllVertices().contains(pkg)) {
+            throw new PackageNotFoundException();
+        }
+        ArrayList<String> passed = new ArrayList<String>();
+        Stack<String> dependents = new Stack<String>();
+        if (!passed.contains(pkg)) {
+            if (this.graph.getAdjacentVerticesOf(pkg).contains(pkg))
+                throw new CycleException();
+            getInstallationOrderForAllPackages(pkg, passed, dependents);
+        }
+        return dependents;
     }
     
     /**
@@ -127,7 +145,17 @@ public class PackageManager {
      * do not exist in the dependency graph.
      */
     public List<String> toInstall(String newPkg, String installedPkg) throws CycleException, PackageNotFoundException {
-        return null;
+        if (!graph.getAllVertices().contains(newPkg)
+                || !graph.getAllVertices().contains(installedPkg)) {
+            throw new PackageNotFoundException();
+        }
+
+        List<String> newList = this.getInstallationOrder(newPkg);
+        List<String> installedList = this.getInstallationOrder(installedPkg);
+
+        newList.removeAll(installedList);
+        Collections.reverse(newList);
+        return newList;
     }
     
     /**
@@ -143,7 +171,39 @@ public class PackageManager {
      * @throws CycleException if you encounter a cycle in the graph
      */
     public List<String> getInstallationOrderForAllPackages() throws CycleException {
-        return null;
+        ArrayList<String> visited = new ArrayList<String>();
+        Stack<String> dependents = new Stack<String>();
+
+        for (String pkg : this.graph.getAllVertices()) {
+            if (!visited.contains(pkg)) {
+                if (this.graph.getAdjacentVerticesOf(pkg).contains(pkg)) {
+                    throw new CycleException();
+                }
+                getInstallationOrderForAllPackages(pkg, visited, dependents);
+            }
+        }
+
+        return dependents;
+    }
+
+    private void getInstallationOrderForAllPackages(String pkg,
+                                                    ArrayList<String> visited, Stack<String> dependents)
+            throws CycleException {
+        visited.add(pkg);
+        for (String pkges : this.graphCopy.getAdjacentVerticesOf(pkg)) {
+            if (!visited.contains(pkges)) {
+                if (this.graph.getAdjacentVerticesOf(pkges).contains(pkges)) {
+                    throw new CycleException();
+                }
+                if (this.graph.getAdjacentVerticesOf(pkg).contains(pkges)
+                        && this.graph.getAdjacentVerticesOf(pkges)
+                        .contains(pkg)) {
+                    throw new CycleException();
+                }
+                getInstallationOrderForAllPackages(pkges, visited, dependents);
+            }
+        }
+        dependents.push(pkg);
     }
     
     /**
@@ -160,68 +220,19 @@ public class PackageManager {
      * @throws CycleException if you encounter a cycle in the graph
      */
     public String getPackageWithMaxDependencies() throws CycleException {
-        ArrayList<String> passed = new ArrayList<>();
-        int counter = 0;
-        int maxCount = 0;
-        String max = null;
-        for (ArrayList<String> pkg : graph.graph){
-            if (graph.getAdjacentVerticesOf(pkg.get(0)).contains(pkg.get(0))) {
-                throw new CycleException();
-            }
-            dependencies = new ArrayList<>();
-            for (String dependent : pkg){
-                if (counter == 0 && max == null){
-                    max = dependent;
-                    counter++;
-                    continue;
+        ArrayList<String> packages = new ArrayList<String>();
+        packages.addAll(this.graphCopy.getAllVertices());
+        int max = 0;
+        String pkgMax = "";
+        for (String pkg : packages) {
+            try {
+                if (this.getInstallationOrder(pkg).size() > max) {
+                    max = this.getInstallationOrder(pkg).size();
+                    pkgMax = pkg;
                 }
-                else if(counter == 0 && max != null){
-                    counter++;
-                    continue;
-                }
-                else{
-                    if(!passed.contains(dependent)){
-                        counter++;
-                        passed.add(dependent);
-                        getDependencies(dependent);
-                        for(String str : dependencies){
-                            if(!passed.contains(str)){
-                                passed.add(str);
-                                counter++;
-                            }
-                        }
-                    }
-                }
-            }
-            if (counter > maxCount){
-                maxCount = counter;
-                max = pkg.get(0);
-            }
+            } catch (PackageNotFoundException e){}
         }
-        return max;
+        return pkgMax;
     }
-
-    private void getDependencies(String pkg){
-        ArrayList<String> dependents = null; // Stores dependents
-        // Iterates through graph looking for list of given pkg
-        for(ArrayList<String> pkgList : graph.graph){
-            if(pkgList.get(0).equals(pkg)){
-                dependents = pkgList;
-                break;
-            }
-        }
-        // Iterates through dependents list making recursive calls on dependents not on the dependencies list
-        for(int i = 1; i < dependents.size(); i++){
-            // If not in list
-            if(!dependencies.contains(dependents.get(i))) {
-                getDependencies(dependents.get(i)); // Recursive call
-                dependencies.add(dependents.get(i)); // Adds to list
-            }
-        }
-    }
-
-    public static void main (String [] args) {
-        System.out.println("PackageManager.main()");
-    }
-    
 }
+
